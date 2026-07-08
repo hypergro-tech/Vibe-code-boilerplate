@@ -1,0 +1,29 @@
+{
+  "name": "REPLACE_WITH_APP_NAME",
+  "gcp": {
+    "projectId": "REPLACE_WITH_GCP_PROJECT_ID",
+    "region": "asia-south1",
+    "runtimeServiceAccount": "app-runtime@REPLACE_WITH_GCP_PROJECT_ID.iam.gserviceaccount.com",
+    "artifactRepo": "apps",
+    "sourcesBucket": "REPLACE_WITH_GCP_PROJECT_ID-deploy-sources",
+    "public": true,
+    "resources": {
+      "cpu": "1",
+      "memory": "512Mi",
+      "minInstances": 0,
+      "maxInstances": 3
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "secrets": {
+    "MONGO_URI": "MONGO_BASE_URI:latest"
+  },
+  "gcsBucket": "",
+  "github": {
+    "org": "REPLACE_WITH_GITHUB_ORG",
+    "defaultBranch": "main",
+    "createRepo": true
+  }
+}

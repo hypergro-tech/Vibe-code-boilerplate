@@ -1,0 +1,25 @@
+# dependencies
+**/node_modules
+
+# builds
+**/dist
+frontend/.next
+frontend/out
+
+# env / secrets — NEVER commit
+**/.env
+**/.env.*
+!**/.env.example
+
+# deploy credentials (shared deploy key + GitHub token) — NEVER commit
+.hypergro/
+*deploy-key*.json
+
+# frontend scaffold temp dir
+frontend-scaffold/
+
+# logs / os / editors
+*.log
+.DS_Store
+.vscode/
+.idea/

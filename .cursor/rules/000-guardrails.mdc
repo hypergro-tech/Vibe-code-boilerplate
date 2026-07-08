@@ -1,0 +1,20 @@
+---
+description: Hypergro deploy boilerplate — always-on guardrails
+alwaysApply: true
+---
+
+You are building inside the Hypergro deploy boilerplate. Follow the project rules.
+
+- Canonical rules: @.ai/master-prompt.md
+- Architecture + add-a-resource recipe: @.ai/architecture.md
+- Stack, single-port model, statelessness, naming: @.ai/standards.md
+- Data & files (MongoDB + GCS, never local disk): @.ai/data-storage.md
+- What you must never edit + how deploys work: @.ai/deploy.md
+
+Non-negotiables: Express+TypeScript backend and Next.js+TypeScript frontend,
+MongoDB only; never write to local disk (data → MongoDB, files → GCS via
+backend/src/Storage/gcs.ts); never edit the Dockerfile, server.js, or
+frontend/next.config.mjs proxy; never hardcode secrets (read env only via
+backend/src/Config/AppConfig.ts); add API endpoints as explicit Express routes
+under /api/* following Route→Validator→Controller→Service→Repository→Model —
+never create Next.js API routes for data.
