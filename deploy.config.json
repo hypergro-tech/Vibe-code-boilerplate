@@ -1,7 +1,7 @@
 {
   "name": "REPLACE_WITH_APP_NAME",
   "gcp": {
-    "projectId": "REPLACE_WITH_GCP_PROJECT_ID",
+    "projectId": "hypergro-deployment-vibes",
     "region": "asia-south1",
     "runtimeServiceAccount": "app-runtime@REPLACE_WITH_GCP_PROJECT_ID.iam.gserviceaccount.com",
     "artifactRepo": "apps",
@@ -14,6 +14,7 @@
       "maxInstances": 3
     }
   },
+  "dbPrefix": "vibecode-",
   "env": {
     "NODE_ENV": "production"
   },
@@ -22,7 +23,7 @@
   },
   "gcsBucket": "",
   "github": {
-    "org": "REPLACE_WITH_GITHUB_ORG",
+    "org": "hypergro-tech",
     "defaultBranch": "main",
     "createRepo": true
   }

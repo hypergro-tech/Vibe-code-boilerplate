@@ -18,7 +18,11 @@ if (!name || /REPLACE_/.test(name)) die('This app has not been deployed yet. Run
 console.log(`\n${c.bold}Recent logs for "${name}"${c.reset} ${c.dim}(newest at the bottom)${c.reset}\n`);
 
 const logging = new Logging(gcpOptions(cfg));
-const filter = `resource.type="cloud_run_revision" AND resource.labels.service_name="${name}"`;
+// Only the app's own stdout/stderr + request logs. Audit logs are excluded: they
+// carry a binary protoPayload that would print as a wall of raw bytes.
+const filter =
+  `resource.type="cloud_run_revision" AND resource.labels.service_name="${name}" ` +
+  `AND NOT logName:"cloudaudit.googleapis.com"`;
 
 let entries;
 try {
@@ -35,10 +39,29 @@ if (!entries?.length) {
 const color = (sev) =>
   sev === 'ERROR' || sev === 'CRITICAL' ? c.red : sev === 'WARNING' ? c.yellow : c.dim;
 
+/** Pull a human-readable line out of an entry, or null if there isn't one. */
+function messageOf(entry) {
+  const d = entry.data;
+  if (typeof d === 'string') return d.trimEnd();
+  if (d && typeof d === 'object') {
+    if (typeof d.message === 'string') return d.message.trimEnd();
+    // Structured request logs: summarise instead of dumping JSON.
+    const r = entry.metadata?.httpRequest;
+    if (r?.requestMethod) return `${r.requestMethod} ${r.requestUrl || ''} ${r.status || ''}`.trim();
+  }
+  const r = entry.metadata?.httpRequest;
+  if (r?.requestMethod) return `${r.requestMethod} ${r.requestUrl || ''} ${r.status || ''}`.trim();
+  return null; // binary/structured payload with nothing readable — skip it
+}
+
+let shown = 0;
 for (const e of entries.reverse()) {
+  const msg = messageOf(e);
+  if (!msg) continue;
   const ts = e.metadata?.timestamp ? new Date(e.metadata.timestamp).toISOString().replace('T', ' ').slice(0, 19) : '';
   const sev = e.metadata?.severity || 'DEFAULT';
-  const msg = typeof e.data === 'string' ? e.data : e.data?.message || JSON.stringify(e.data);
   console.log(`${c.dim}${ts}${c.reset} ${color(sev)}${String(sev).padEnd(7)}${c.reset} ${msg}`);
+  shown += 1;
 }
+if (!shown) console.log(`${c.dim}No app logs in the last while. Open your app's URL to generate some.${c.reset}`);
 console.log('');

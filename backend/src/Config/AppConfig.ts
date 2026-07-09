@@ -33,6 +33,13 @@ const envSchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'APP_NAME must be a lowercase slug (a-z, 0-9, hyphens)')
     .default('app'),
 
+  // Optional prefix so every app's database groups together on a shared cluster
+  // (e.g. DB_PREFIX="vibecode-" → database "vibecode-my-app"). Empty = no prefix.
+  DB_PREFIX: z
+    .string()
+    .regex(/^[a-z0-9-]*$/, 'DB_PREFIX must be lowercase a-z, 0-9, hyphens')
+    .default(''),
+
   // Comma-separated list of allowed CORS origins; "*" allows all. In production
   // the browser only calls same-origin /api/* through the proxy, so this can be
   // locked down — it exists mainly for local cross-origin dev.
@@ -65,8 +72,8 @@ const AppConfig = Object.freeze({
   PORT: env.BACKEND_PORT ?? env.PORT,
   HOST: env.HOST,
   MONGO_URI: env.MONGO_URI,
-  // The per-app database name. Used as mongoose's `dbName`.
-  DB_NAME: env.APP_NAME,
+  // The per-app database name (prefix + app name). Used as mongoose's `dbName`.
+  DB_NAME: `${env.DB_PREFIX}${env.APP_NAME}`,
   APP_NAME: env.APP_NAME,
   CORS_ORIGIN: env.CORS_ORIGIN === '*' ? '*' : env.CORS_ORIGIN.split(',').map((o) => o.trim()),
   GCS_BUCKET: env.GCS_BUCKET,

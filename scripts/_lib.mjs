@@ -61,11 +61,13 @@ export function trySh(cmd, opts = {}) {
 // ----- prompts -------------------------------------------------------------
 export async function ask(question, { silent = false } = {}) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-  if (silent && rl.output) {
-    const orig = rl._writeToOutput?.bind(rl);
-    rl._writeToOutput = (s) => { if (s.includes(question)) orig?.(s); };
-  }
-  const answer = await new Promise((res) => rl.question(question, res));
+  const answer = await new Promise((res) => {
+    rl.question(question, res);
+    // Mute echo AFTER the prompt is printed, so secrets never appear on screen.
+    // (readline redraws `prompt + typed text` on every keystroke, so this must be
+    // an unconditional no-op — matching on the prompt text would echo the secret.)
+    if (silent) rl._writeToOutput = () => {};
+  });
   rl.close();
   if (silent) console.log();
   return answer.trim();

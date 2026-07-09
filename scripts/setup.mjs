@@ -68,12 +68,30 @@ try {
 const org = cfg.github?.org;
 if (org && !/REPLACE_/.test(org)) {
   info(`\nOptional: a GitHub token lets deploys save your code to the "${org}" org automatically.`);
-  const token = await ask('Paste your GitHub token (or press Enter to skip): ', { silent: true });
-  if (token) {
-    fs.writeFileSync(TOKEN_FILE, token.trim(), { mode: 0o600 });
-    ok('Saved GitHub token');
-  } else {
+  info('(your typing is hidden)');
+  const token = (await ask('Paste your GitHub token (or press Enter to skip): ', { silent: true })).trim();
+  if (!token) {
     warn("Skipped GitHub — deploys will still work, they just won't save code to GitHub.");
+  } else if ((token.match(/gh[pousr]_|github_pat_/g) || []).length > 1) {
+    warn('That looks like the token was pasted twice. Skipping — re-run `npm run setup` and paste it once.');
+  } else if (!/^gh[pousr]_[A-Za-z0-9]{36,}$/.test(token) && !/^github_pat_[A-Za-z0-9_]{20,}$/.test(token)) {
+    warn("That doesn't look like a GitHub token (expected ghp_… or github_pat_…). Skipping.");
+  } else {
+    // Verify it actually works before saving.
+    let login = '';
+    try {
+      const res = await fetch('https://api.github.com/user', {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      });
+      if (!res.ok) throw new Error(`GitHub returned ${res.status}`);
+      login = (await res.json()).login;
+    } catch (e) {
+      warn(`GitHub rejected the token (${e.message}). Skipping — deploys still work without it.`);
+    }
+    if (login) {
+      fs.writeFileSync(TOKEN_FILE, token, { mode: 0o600 });
+      ok(`Saved GitHub token (authenticated as ${login})`);
+    }
   }
 }
 

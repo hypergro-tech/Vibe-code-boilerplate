@@ -134,6 +134,17 @@ not in the commit. You distribute that file to teammates separately (Slack/1Pass
 
 ---
 
+> ### ⚠️ Don't run `npm run deploy` inside this template folder
+> The first deploy writes the app's name into `deploy.config.json`. If you commit
+> that, every teammate inherits the same name and they all collide on one Cloud Run
+> service. To test, **copy the folder somewhere else** and deploy from the copy —
+> which is exactly what a teammate does anyway:
+> ```bash
+> rsync -a --exclude node_modules --exclude .git ./ /tmp/vibe-test/
+> cd /tmp/vibe-test && npm install && npm run bootstrap && npm run deploy
+> ```
+> In the committed template, keep `"name": "REPLACE_WITH_APP_NAME"`.
+
 ## Part B — what each teammate does (once per laptop, then per app)
 Give them the repo link and the `deploy-key.json` file. **They do NOT need gcloud** —
 only Node.js (and optionally Git). They:

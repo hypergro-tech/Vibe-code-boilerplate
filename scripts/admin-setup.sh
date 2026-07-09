@@ -20,7 +20,8 @@
 set -euo pipefail
 
 # ======= EDIT THIS ONCE =======
-PROJECT_ID="${PROJECT_ID:-REPLACE_WITH_GCP_PROJECT_ID}"
+# PROJECT_ID="${PROJECT_ID:-REPLACE_WITH_GCP_PROJECT_ID}"
+PROJECT_ID="hypergro-deployment-vibes"
 # ==============================
 REGION="${REGION:-asia-south1}"
 AR_REPO="${AR_REPO:-apps}"

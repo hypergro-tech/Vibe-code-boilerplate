@@ -80,15 +80,14 @@ async function pushToGithub() {
     trySh(`git branch -M ${branch}`);
   }
   if (!(await createGithubRepo(gh.org, name, token))) return { skipped: 'could not create/find the GitHub repo' };
-  // Point origin at THIS app's own repo (handles a boilerplate clone too).
-  if (trySh('git remote get-url origin').ok) trySh(`git remote set-url origin ${repoUrl}`);
-  else trySh(`git remote add origin ${repoUrl}`);
 
   sh('git add -A');
   trySh(`git commit -q -m "deploy: ${new Date().toISOString()}"`); // ok if nothing changed
   const basic = Buffer.from(`x-access-token:${token}`).toString('base64');
+  // Push straight to THIS app's own repo URL. We deliberately never touch `origin`,
+  // so deploying from a clone of the boilerplate can't hijack its remote.
   const push = trySh(
-    `git -c http.extraHeader="Authorization: Basic ${basic}" push -u origin HEAD:${branch}`,
+    `git -c http.extraHeader="Authorization: Basic ${basic}" push ${repoUrl} HEAD:${branch}`,
     { env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }
   );
   if (!push.ok) return { skipped: `push failed (${push.out.split('\n').filter(Boolean).slice(-1)[0] || 'unknown'})` };
@@ -109,6 +108,8 @@ function includeInTar(p) {
   if (parts.some((seg) => IGNORE_DIRS.has(seg))) return false;
   const base = parts[parts.length - 1] || '';
   if (base === '.env' || (base.startsWith('.env.') && base !== '.env.example')) return false;
+  // NEVER upload credentials with the source.
+  if (/deploy-key.*\.json$/i.test(base) || base.endsWith('.pem')) return false;
   if (base.endsWith('.log') || base === '.DS_Store') return false;
   return true;
 }
@@ -143,6 +144,7 @@ try {
 // 5. Cloud Build: build the image AND deploy to Cloud Run (gcloud runs in-cloud)
 // ---------------------------------------------------------------------------
 const envPairs = { ...(cfg.env || {}), APP_NAME: name };
+if (cfg.dbPrefix) envPairs.DB_PREFIX = cfg.dbPrefix; // e.g. "vibecode-" → db "vibecode-<app>"
 if (cfg.gcsBucket) {
   envPairs.GCS_BUCKET = cfg.gcsBucket;
   envPairs.GCS_PROJECT_ID = projectId;
@@ -188,18 +190,28 @@ console.log('');
 log(`Building & deploying "${name}" to Cloud Run (${region})…`);
 info('The first build takes a few minutes (installing + building both apps). This is normal.');
 
+// Cloud Build returns `status` as a protobuf enum, which the client may hand back
+// as a NUMBER (3) or a STRING ('SUCCESS') depending on transport. Normalise both.
+const BUILD_STATUS = {
+  0: 'STATUS_UNKNOWN', 1: 'QUEUED', 2: 'WORKING', 3: 'SUCCESS', 4: 'FAILURE',
+  5: 'INTERNAL_ERROR', 6: 'TIMEOUT', 7: 'CANCELLED', 9: 'EXPIRED', 10: 'PENDING',
+};
+const statusName = (s) => (typeof s === 'number' ? BUILD_STATUS[s] || `STATUS_${s}` : String(s ?? 'UNKNOWN'));
+
 const cb = new CloudBuildClient(gcpOptions(cfg));
 let result;
+let logUrl = '';
 try {
   const [operation] = await cb.createBuild({ projectId, build });
-  const logUrl = operation.metadata?.build?.logUrl;
+  logUrl = operation.metadata?.build?.logUrl || '';
   if (logUrl) info(`Watch it live: ${logUrl}`);
   [result] = await operation.promise();
 } catch (e) {
   die(`Deploy failed: ${(e?.message || String(e)).split('\n')[0]}\n  → See the Cloud Build console for details.`);
 }
-if (result?.status !== 'SUCCESS') {
-  die(`Build ended with status ${result?.status}. Open the Cloud Build logs to see why.`);
+const finalStatus = statusName(result?.status);
+if (finalStatus !== 'SUCCESS') {
+  die(`Build ended with status ${finalStatus}.${logUrl ? `\n  Logs: ${logUrl}` : ''}`);
 }
 
 // ---------------------------------------------------------------------------

@@ -7,9 +7,9 @@ or Google Cloud Storage (files). Never the local disk.
 ## Structured data → MongoDB
 - Go through the **Repository layer** (Mongoose) — see `.ai/architecture.md`.
 - **Each app uses its OWN database, named after the app.** The platform injects an
-  `APP_NAME` env var (a lowercase slug); the backend passes it to Mongoose as
-  `dbName` in `backend/src/Config/db.ts`. So many apps share one cluster without
-  colliding.
+  `APP_NAME` env var (a lowercase slug) plus an optional `DB_PREFIX`; the backend
+  uses `DB_PREFIX + APP_NAME` as Mongoose's `dbName` in `backend/src/Config/db.ts`
+  (e.g. `vibecode-my-app`). So many apps share one cluster without colliding.
 - **Never hardcode a database name**, and never put a db path in `MONGO_URI` — the
   name always comes from `APP_NAME`.
 - The connection string comes from env via `AppConfig` — never hardcode it.

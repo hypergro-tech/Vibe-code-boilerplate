@@ -12,6 +12,8 @@
 .idea
 frontend-scaffold
 .hypergro
+deploy-key*.json
+*.pem
 docs
 .ai
 .cursor

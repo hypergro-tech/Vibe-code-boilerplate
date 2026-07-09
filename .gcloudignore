@@ -11,4 +11,6 @@
 **/*.log
 frontend-scaffold
 .hypergro
+deploy-key*.json
+*.pem
 .DS_Store
