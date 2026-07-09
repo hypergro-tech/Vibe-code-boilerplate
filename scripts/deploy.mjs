@@ -50,6 +50,24 @@ if (!isValidName(name)) {
 // ---------------------------------------------------------------------------
 // 2. Push to GitHub (best effort — never blocks the deploy)
 // ---------------------------------------------------------------------------
+
+/** Normalise a git URL so https/ssh/.git variants of the same repo compare equal. */
+function normaliseRepo(url) {
+  return String(url || '')
+    .trim()
+    .replace(/^git@([^:]+):/, 'https://$1/') // git@github.com:org/x → https://github.com/org/x
+    .replace(/\.git$/, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+}
+const sameRepo = (a, b) => Boolean(a && b) && normaliseRepo(a) === normaliseRepo(b);
+
+/** The repo `origin` currently points at, or '' if there's no origin/git. */
+function currentOrigin() {
+  const r = trySh('git remote get-url origin');
+  return r.ok ? r.out.trim() : '';
+}
+
 async function createGithubRepo(org, repo, token) {
   try {
     const res = await fetch(`https://api.github.com/orgs/${org}/repos`, {
@@ -91,13 +109,33 @@ async function pushToGithub() {
     { env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }
   );
   if (!push.ok) return { skipped: `push failed (${push.out.split('\n').filter(Boolean).slice(-1)[0] || 'unknown'})` };
-  return { pushed: repoUrl.replace(/\.git$/, '') };
+
+  // This folder was cloned from the shared boilerplate, so `origin` still points at
+  // the TEMPLATE. Now that the app has its own repo, repoint `origin` there — otherwise
+  // a plain `git push` (which AI tools run unprompted) would overwrite the template
+  // for everyone. We only ever touch `origin` when it is exactly the template.
+  let repointed = false;
+  if (gh.templateRepo && sameRepo(currentOrigin(), gh.templateRepo)) {
+    repointed = trySh(`git remote set-url origin ${repoUrl}`).ok;
+  }
+  return { pushed: repoUrl.replace(/\.git$/, ''), repointed };
 }
 
 log('Saving your code to GitHub…');
 const git = await pushToGithub();
-if (git.pushed) ok(`Pushed to ${git.pushed}`);
-else warn(`Skipped GitHub: ${git.skipped}`);
+if (git.pushed) {
+  ok(`Pushed to ${git.pushed}`);
+  if (git.repointed) info(`  (this folder is now linked to your app's repo, not the shared boilerplate)`);
+} else {
+  warn(`Skipped GitHub: ${git.skipped}`);
+  // No app repo yet, so `origin` may still point at the shared template.
+  const tpl = cfg.github?.templateRepo;
+  if (has('git') && tpl && sameRepo(currentOrigin(), tpl)) {
+    warn('This folder is still linked to the shared boilerplate template.');
+    warn("Do NOT run `git push` here — it would overwrite the template for everyone.");
+    info('  Fix it with:  git remote remove origin');
+  }
+}
 
 // ---------------------------------------------------------------------------
 // 3. Package the source (respect the same ignores as .gcloudignore)

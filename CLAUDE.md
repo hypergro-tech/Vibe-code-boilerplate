@@ -16,7 +16,13 @@ Never hand-create the Next.js app, and never edit the `rewrites()` in
 `frontend/next.config.mjs` — that proxy is what lets the browser reach the private
 backend with no CORS.
 
-## The 10 rules you must never break
+## 🚫 Never run git commands
+**Do not run `git push`, `git remote`, `git commit`, or switch branches.** This folder
+may still be linked to the shared boilerplate template — pushing would overwrite it for
+the whole team. Deployment (including saving code to GitHub) is handled entirely by
+`npm run deploy`. If the user asks to "push" or "deploy", run **`npm run deploy`**.
+
+## The 11 rules you must never break
 > Canonical copy: [`.ai/master-prompt.md`](.ai/master-prompt.md). Summary:
 
 1. Stack is fixed: **Express+TS** backend, **Next.js+TS** frontend, **MongoDB** only.
@@ -29,6 +35,7 @@ backend with no CORS.
 8. The browser calls only **same-origin `/api/*`** (`frontend/src/lib/api.ts`).
 9. Validate input with **Zod**; respond via **`sendSuccess`**; throw **`AppError`** subclasses.
 10. Add entities by **copying the `resource.*` files** + updating barrels + routes + `openapi.ts`.
+11. **Never run git commands** (`push`/`remote`/`commit`/branch changes). Use `npm run deploy`.
 
 ## Where things are
 | I want to… | Read |

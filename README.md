@@ -19,6 +19,24 @@ and share a single URL, so there's nothing to juggle.
 
 ---
 
+## 📋 Which command, how often
+
+| Command | How often | Who |
+|---|---|---|
+| `npm install` | once per project folder | everyone |
+| **`npm run setup`** | **once per computer** | **everyone — yes, you too** |
+| `npm run bootstrap` | once per project | everyone |
+| `npm run dev` | anytime, to test locally | everyone |
+| `npm run deploy` | every time you want it live | everyone |
+| `npm run rollback` | to undo a bad change | everyone |
+| `scripts/admin-setup.sh` | once, for the whole company | **only the admin** |
+
+> **`npm run setup` runs on every new computer**, not just the admin's. It saves the
+> deploy key to your home folder (`~/.hypergro/`) so the deploy can find it. Skip it
+> and `npm run deploy` will simply tell you to run it.
+
+---
+
 ## ✅ First time on this computer (do once)
 
 1. **Install the tools** (ask a teammate if unsure):

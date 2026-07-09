@@ -115,6 +115,7 @@ This frontend is part of the Hypergro deploy boilerplate — follow the guardrai
 - Do NOT create Next.js API routes / route handlers (\`app/api/**\`) or server actions for data — all data lives in the Express backend under \`/api\`. See \`../.ai/architecture.md\`.
 - Never edit \`next.config.mjs\` — its \`rewrites()\` proxy connects the frontend to the private backend. See \`../.ai/deploy.md\`.
 - Data → MongoDB, files → GCS, via the backend. Never use the browser/localStorage as a database.
+- NEVER run git commands (\`git push\`, \`git remote\`, \`git commit\`). This folder may be a clone of the shared boilerplate template, and a push would overwrite it for the whole team. To deploy, run \`npm run deploy\` from the repo root.
 `;
 
 // ---------------------------------------------------------------------------

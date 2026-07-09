@@ -3,6 +3,17 @@
 You're going to build an app by describing it to an AI, then put it on the internet
 by copy-pasting a few commands. You don't need to know Git, Docker, or servers.
 
+## Which command, how often
+
+| Command | How often |
+|---|---|
+| `npm install` | once per project folder |
+| **`npm run setup`** | **once per computer** (yes, on *your* computer too) |
+| `npm run bootstrap` | once per project |
+| `npm run dev` | anytime, to test locally |
+| `npm run deploy` | every time you want it live |
+| `npm run rollback` | to undo a bad change |
+
 ## 1. One-time setup on your computer
 Install [Node.js](https://nodejs.org) (and optionally [Git](https://git-scm.com/downloads)
 to save your code to GitHub). **No Google Cloud CLI needed.** Then, in this folder:
@@ -11,6 +22,9 @@ npm install
 npm run setup      # paste the path to the "deploy-key.json" your admin gave you
 ```
 It checks the key works, so you know right away you're good to go.
+
+> This saves the key into your home folder (`~/.hypergro/`) — that's why later deploys
+> never ask for it again. **Every person, on every computer, runs this once.**
 
 ## 2. Create your website
 ```bash

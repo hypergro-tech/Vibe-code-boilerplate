@@ -45,3 +45,8 @@ habits.** When in doubt, read the matching file in `.ai/`.
 10. **Add a new entity by copying the `resource.*` template** and updating the
     barrels + `Routes/v1/index.ts` + `Config/openapi.ts`, then run
     `npm run typecheck`. → `.ai/architecture.md`
+
+11. **Never run git commands.** No `git push`, `git remote`, `git commit`, or branch
+    switching. This folder may still point at the shared boilerplate template, and a
+    push would overwrite it for the whole team. Deployment — including saving the code
+    to GitHub — is handled entirely by **`npm run deploy`**. → `.ai/deploy.md`

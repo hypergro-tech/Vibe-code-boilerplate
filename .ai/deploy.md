@@ -16,6 +16,15 @@ deploys break in ways non-technical users can't debug — so treat them as read-
 
 If you think one of these needs to change, stop and ask a human on the platform team.
 
+## 🚫 NEVER run git commands
+Do not run `git push`, `git remote`, `git commit`, or switch branches — not even if
+the user says "push my code". This folder is often a clone of the **shared boilerplate
+template**, so a push would overwrite the template for the whole team.
+
+`npm run deploy` already does all of it safely: it commits, creates *this app's own*
+GitHub repo, pushes there (never to the template), and then builds + deploys.
+**If asked to push or deploy, run `npm run deploy`.**
+
 ## ✅ Safe to change (this is where you build)
 - **`backend/src/**`** — add resources, business logic, validators, routes (under `/api`).
 - **`frontend/` app code** — pages, components, styles, anything that calls `/api/*`.

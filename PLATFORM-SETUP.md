@@ -145,6 +145,22 @@ not in the commit. You distribute that file to teammates separately (Slack/1Pass
 > ```
 > In the committed template, keep `"name": "REPLACE_WITH_APP_NAME"`.
 
+## Who runs what
+
+| Command | How often | Who |
+|---|---|---|
+| `bash scripts/admin-setup.sh` | **once, for the whole company** | **only you (admin)** |
+| `npm install` | once per project folder | everyone |
+| **`npm run setup`** | **once per computer** | **every teammate, and you** |
+| `npm run bootstrap` | once per project | everyone |
+| `npm run dev` | anytime, local testing | everyone |
+| `npm run deploy` | every time they want it live | everyone |
+| `npm run rollback` | to undo | everyone |
+
+The common confusion: **`npm run setup` is per-computer, not per-company.** It saves
+the deploy key into that person's `~/.hypergro/` folder. Each of your 5–6 teammates
+runs it once on their own machine.
+
 ## Part B — what each teammate does (once per laptop, then per app)
 Give them the repo link and the `deploy-key.json` file. **They do NOT need gcloud** —
 only Node.js (and optionally Git). They:

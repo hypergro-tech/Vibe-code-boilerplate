@@ -25,6 +25,7 @@
   "github": {
     "org": "hypergro-tech",
     "defaultBranch": "main",
-    "createRepo": true
+    "createRepo": true,
+    "templateRepo": "https://github.com/hypergro-tech/Vibe-code-boilerplate.git"
   }
 }
