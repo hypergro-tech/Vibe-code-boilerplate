@@ -1,6 +1,6 @@
 import type { FilterQuery, HydratedDocument, Model, SortOrder, UpdateQuery } from 'mongoose';
 
-import { NotFoundError } from '../Utils/errors/AppError.js';
+import { NotFoundError } from '../../Utils/errors/AppError.js';
 
 /** Options accepted by paginated list queries. */
 export interface PaginationOptions {

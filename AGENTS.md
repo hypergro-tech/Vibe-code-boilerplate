@@ -3,7 +3,7 @@
 This project uses AI guardrails so any coding agent (Cursor, Codex, Gemini CLI,
 Claude Code, …) produces clean, deployable code.
 
-**Start with [`CLAUDE.md`](CLAUDE.md)** — it has the FIRST-RUN step and the 10 hard
+**Start with [`CLAUDE.md`](CLAUDE.md)** — it has the FIRST-RUN step and the 11 hard
 rules. The detailed, canonical rules live in the [`.ai/`](.ai/) folder:
 
 - [`.ai/master-prompt.md`](.ai/master-prompt.md) — the rules you must never break

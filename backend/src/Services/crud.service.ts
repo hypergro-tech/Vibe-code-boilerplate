@@ -1,7 +1,7 @@
 import type { FilterQuery, HydratedDocument, UpdateQuery } from 'mongoose';
 
-import type CrudRepository from '../Repository/crud.repository.js';
-import type { PaginatedResult, PaginationOptions } from '../Repository/crud.repository.js';
+import type CrudRepository from '../Repository/data/crud.repository.js';
+import type { PaginatedResult, PaginationOptions } from '../Repository/data/crud.repository.js';
 
 /**
  * Generic service implementing the common business-logic operations on top of a

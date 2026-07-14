@@ -2,8 +2,9 @@ import { StatusCodes } from 'http-status-codes';
 import type { Request, Response } from 'express';
 import type { FilterQuery } from 'mongoose';
 
-import { ResourceService } from '../Services/index.js';
 import { sendSuccess } from '../Utils/index.js';
+import type ResourceService from '../Services/resource.service.js';
+import type { Cradle } from '../DI/index.js';
 import type { IResource } from '../Models/index.js';
 import type {
   CreateResourceBody,
@@ -12,45 +13,56 @@ import type {
 } from '../Validators/resource.validator.js';
 
 /**
- * Controllers follow a FUNCTIONAL style: each handler is a small, stateless
- * function. Their only job is HTTP concerns — read the (already validated)
- * request, delegate to the service, and shape the response. No business logic
- * and no try/catch (asyncHandler forwards rejections to the error middleware).
+ * Controllers are thin HTTP adapters: their only job is HTTP concerns — read the
+ * (already validated) request, delegate to a service, and shape the response.
+ * No business logic and no try/catch (asyncHandler forwards rejections to the
+ * error middleware).
  *
- * One shared service instance is fine here since the service is stateless.
+ * The controller is a CLASS so it can receive its service through dependency
+ * injection: the DI container (`src/DI/index.ts`) constructs it once and
+ * passes in `resourceService`. The handler methods are ARROW FUNCTIONS — that
+ * binds `this`, so they can be passed straight to the router as callbacks.
  *
  * `validate(...)` has already parsed and coerced the request, so the casts below
  * are the safe, documented boundary between untyped Express input and our types.
  */
-const resourceService = new ResourceService();
+class ResourceController {
+  private readonly resourceService: ResourceService;
 
-export const createResource = async (req: Request, res: Response): Promise<void> => {
-  const resource = await resourceService.create(req.body as CreateResourceBody);
-  sendSuccess(res, {
-    statusCode: StatusCodes.CREATED,
-    data: resource,
-    message: 'Resource created',
-  });
-};
+  constructor({ resourceService }: Pick<Cradle, 'resourceService'>) {
+    this.resourceService = resourceService;
+  }
 
-export const getResource = async (req: Request, res: Response): Promise<void> => {
-  const resource = await resourceService.getById(req.params.id);
-  sendSuccess(res, { data: resource });
-};
+  createResource = async (req: Request, res: Response): Promise<void> => {
+    const resource = await this.resourceService.create(req.body as CreateResourceBody);
+    sendSuccess(res, {
+      statusCode: StatusCodes.CREATED,
+      data: resource,
+      message: 'Resource created',
+    });
+  };
 
-export const listResources = async (req: Request, res: Response): Promise<void> => {
-  const { page, limit, status } = req.query as unknown as ListResourceQuery;
-  const filter: FilterQuery<IResource> = status ? { status } : {};
-  const { items, meta } = await resourceService.list(filter, { page, limit });
-  sendSuccess(res, { data: items, meta, message: 'Resources fetched' });
-};
+  getResource = async (req: Request, res: Response): Promise<void> => {
+    const resource = await this.resourceService.getById(req.params.id);
+    sendSuccess(res, { data: resource });
+  };
 
-export const updateResource = async (req: Request, res: Response): Promise<void> => {
-  const resource = await resourceService.update(req.params.id, req.body as UpdateResourceBody);
-  sendSuccess(res, { data: resource, message: 'Resource updated' });
-};
+  listResources = async (req: Request, res: Response): Promise<void> => {
+    const { page, limit, status } = req.query as unknown as ListResourceQuery;
+    const filter: FilterQuery<IResource> = status ? { status } : {};
+    const { items, meta } = await this.resourceService.list(filter, { page, limit });
+    sendSuccess(res, { data: items, meta, message: 'Resources fetched' });
+  };
 
-export const deleteResource = async (req: Request, res: Response): Promise<void> => {
-  const result = await resourceService.remove(req.params.id);
-  sendSuccess(res, { data: result, message: 'Resource deleted' });
-};
+  updateResource = async (req: Request, res: Response): Promise<void> => {
+    const resource = await this.resourceService.update(req.params.id, req.body as UpdateResourceBody);
+    sendSuccess(res, { data: resource, message: 'Resource updated' });
+  };
+
+  deleteResource = async (req: Request, res: Response): Promise<void> => {
+    const result = await this.resourceService.remove(req.params.id);
+    sendSuccess(res, { data: result, message: 'Resource deleted' });
+  };
+}
+
+export default ResourceController;

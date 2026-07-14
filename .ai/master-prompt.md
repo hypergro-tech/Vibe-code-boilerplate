@@ -11,7 +11,7 @@ habits.** When in doubt, read the matching file in `.ai/`.
 
 2. **Never write to local disk.** Containers are stateless and wiped on every
    deploy. All data → **MongoDB** (through the Repository layer). All files/uploads
-   → **Google Cloud Storage** via `backend/src/Storage/gcs.ts`. Never use
+   → **Google Cloud Storage** via `backend/src/Repository/external/gcs.ts`. Never use
    `fs.writeFile`, `multer.diskStorage`, an `uploads/` folder, SQLite, or temp
    files. → `.ai/data-storage.md`
 
@@ -24,9 +24,14 @@ habits.** When in doubt, read the matching file in `.ai/`.
    (nothing else reads `process.env`). Values are injected at deploy time.
 
 5. **API endpoints are explicit Express routes** under `/api/...`, following
-   **Route → Validator → Controller → Service → Repository → Model**. **Never**
-   create Next.js API routes, route handlers (`app/api/**`), or server actions for
-   data — the backend owns all data. → `.ai/architecture.md`
+   **Route → Validator → Controller → Service → Repository → Model**, with the
+   layers wired through the DI **container** (`backend/src/DI/`) — classes
+   receive their dependencies, they never `new` each other. Keep to the **fixed
+   backend layer folders**; never add a new top-level folder under `backend/src/`
+   (new features nest inside existing layers; third-party integrations go in
+   `Repository/external/`). **Never** create Next.js API routes, route handlers
+   (`app/api/**`), or server actions for data — the backend owns all data.
+   → `.ai/architecture.md`
 
 6. **Each app has its own database, named after the app** (via the `APP_NAME`
    env). Never hardcode a database name. → `.ai/data-storage.md`
@@ -42,9 +47,10 @@ habits.** When in doubt, read the matching file in `.ai/`.
    and throw `AppError` subclasses (`NotFoundError`, `ConflictError`, …) for
    errors. Don't invent new response shapes.
 
-10. **Add a new entity by copying the `resource.*` template** and updating the
-    barrels + `Routes/v1/index.ts` + `Config/openapi.ts`, then run
-    `npm run typecheck`. → `.ai/architecture.md`
+10. **Add a new entity by copying the `resource.*` template**, registering it in
+    the DI **container** (`src/DI/`), and updating the barrels +
+    `Routes/v1/index.ts` + `Config/openapi.ts`, then run `npm run typecheck`.
+    → `.ai/architecture.md`
 
 11. **Never run git commands.** No `git push`, `git remote`, `git commit`, or branch
     switching. This folder may still point at the shared boilerplate template, and a

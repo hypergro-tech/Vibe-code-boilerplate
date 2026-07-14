@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { ResourceController } from '../../Controllers/index.js';
+import container from '../../DI/index.js';
 import { asyncHandler, validate } from '../../Middlewares/index.js';
 import {
   createResourceSchema,
@@ -11,15 +11,19 @@ import {
 
 const router = express.Router();
 
+// Pull the controller instance from the DI container (built once). Its handler
+// methods are arrow functions, so `this` stays bound when passed as callbacks.
+const resource = container.cradle.resourceController;
+
 router
   .route('/')
-  .get(validate(listResourceSchema), asyncHandler(ResourceController.listResources))
-  .post(validate(createResourceSchema), asyncHandler(ResourceController.createResource));
+  .get(validate(listResourceSchema), asyncHandler(resource.listResources))
+  .post(validate(createResourceSchema), asyncHandler(resource.createResource));
 
 router
   .route('/:id')
-  .get(validate(resourceIdSchema), asyncHandler(ResourceController.getResource))
-  .patch(validate(updateResourceSchema), asyncHandler(ResourceController.updateResource))
-  .delete(validate(resourceIdSchema), asyncHandler(ResourceController.deleteResource));
+  .get(validate(resourceIdSchema), asyncHandler(resource.getResource))
+  .patch(validate(updateResourceSchema), asyncHandler(resource.updateResource))
+  .delete(validate(resourceIdSchema), asyncHandler(resource.deleteResource));
 
 export default router;

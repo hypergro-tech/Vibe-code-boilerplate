@@ -1,7 +1,7 @@
 import type { HydratedDocument } from 'mongoose';
 
 import CrudRepository from './crud.repository.js';
-import { Resource, type IResource } from '../Models/index.js';
+import { Resource, type IResource } from '../../Models/index.js';
 
 /**
  * Concrete repository for the Resource model. Inherits all generic CRUD from

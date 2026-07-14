@@ -26,15 +26,15 @@ the whole team. Deployment (including saving code to GitHub) is handled entirely
 > Canonical copy: [`.ai/master-prompt.md`](.ai/master-prompt.md). Summary:
 
 1. Stack is fixed: **Express+TS** backend, **Next.js+TS** frontend, **MongoDB** only.
-2. **Never write to local disk.** Data → MongoDB; files → GCS (`backend/src/Storage/gcs.ts`).
+2. **Never write to local disk.** Data → MongoDB; files → GCS (`backend/src/Repository/external/gcs.ts`).
 3. **Never edit** `Dockerfile`, `server.js`, `frontend/next.config.mjs`, ports, or `scripts/`.
 4. **Never hardcode secrets.** Read env only via `backend/src/Config/AppConfig.ts`.
-5. API endpoints are **explicit Express routes** under `/api/...` — **never** Next.js API routes.
+5. API endpoints are **explicit Express routes** under `/api/...`, wired through the DI **container** (`backend/src/DI/`) — **never** Next.js API routes.
 6. Each app has its **own MongoDB database named after the app** (`APP_NAME`).
 7. The **backend is private** (`127.0.0.1:5000`); only the frontend is public.
 8. The browser calls only **same-origin `/api/*`** (`frontend/src/lib/api.ts`).
 9. Validate input with **Zod**; respond via **`sendSuccess`**; throw **`AppError`** subclasses.
-10. Add entities by **copying the `resource.*` files** + updating barrels + routes + `openapi.ts`.
+10. Add entities by **copying the `resource.*` files**, registering them in the DI **container** (`src/DI/`) + updating barrels + routes + `openapi.ts`. Keep the **fixed backend layer folders** — never add a new top-level folder under `backend/src/`.
 11. **Never run git commands** (`push`/`remote`/`commit`/branch changes). Use `npm run deploy`.
 
 ## Where things are

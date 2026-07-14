@@ -10,11 +10,11 @@ that fail loudly at build time instead of silently at runtime.
 Requests flow through clearly separated layers, each with one responsibility:
 
 ```
-Route → Validator (Zod) → Controller (functional) → Service (class) → Repository (class) → Model (Mongoose)
+Route → Validator (Zod) → Controller (class) → Service (class) → Repository (class) → Model (Mongoose)
 ```
 
 - **Routes** — wire HTTP verbs/paths to controllers; attach validation middleware.
-- **Controllers** _(functional)_ — thin HTTP adapters: read the validated request,
+- **Controllers** _(class)_ — thin HTTP adapters: read the validated request,
   call a service, send a standardised response. No business logic, no try/catch.
 - **Services** _(class)_ — framework-agnostic business logic & domain rules.
   Depend on repositories, never on Express or Mongoose directly.
@@ -22,13 +22,44 @@ Route → Validator (Zod) → Controller (functional) → Service (class) → Re
   `CrudRepository` base class provides CRUD; concrete repositories extend it.
 - **Models** — Mongoose schemas.
 
-> **Why classes for service/repository and functions for controllers?**
-> Services and repositories benefit from instance state and inheritance — e.g.
-> `ResourceRepository extends CrudRepository` reuses CRUD, and dependency
-> injection via the constructor makes them trivial to unit-test with mocks.
-> Controllers are stateless request→response adapters, so plain functions keep
-> them simple and tree-shakeable. This is the convention used by most mature
-> Node back ends.
+The three class layers are **wired by a Dependency-Injection container**
+(`src/DI/`, built on Awilix): each class declares the dependencies it needs
+in its constructor, and the container constructs the graph and injects them — no
+layer ever calls `new` on another. See [Dependency Injection](#dependency-injection).
+
+> **Why classes + DI across the layers?**
+> Every layer benefits from instance state, inheritance, and constructor injection:
+> `ResourceRepository extends CrudRepository` reuses CRUD, `ResourceService` gets
+> its repository injected, and `ResourceController` gets its service injected — so
+> each is decoupled and trivial to unit-test with mocks. This mirrors the
+> architecture of Hypergro's main `hypergro-service` backend.
+
+## Dependency Injection
+
+Controllers, services, and repositories are assembled by a small **Awilix**
+container in `src/DI/index.ts` — the same DI approach used by Hypergro's
+main `hypergro-service`. Instead of a controller doing `new XService(new XRepository())`,
+each class lists the dependencies it needs and the container provides them:
+
+```ts
+// A class asks for what it needs by destructuring the typed cradle:
+class ResourceService extends CrudService<IResource, ResourceRepository> {
+  constructor({ resourceRepository }: Pick<Cradle, 'resourceRepository'>) {
+    super(resourceRepository);
+  }
+}
+
+// Routes pull the finished controller from the container:
+import container from '../../DI/index.js';
+const resource = container.cradle.resourceController;
+router.route('/').post(validate(createResourceSchema), asyncHandler(resource.createResource));
+```
+
+The registration key (`resourceService`) is the contract — it must match the name
+the constructor destructures. Everything is registered `.singleton()` (our layers
+are stateless). You don't need to register pure helpers or config — import those
+normally; DI is for the layered chain and anything you'd want to mock in a test.
+Full explanation: [`../.ai/architecture.md`](../.ai/architecture.md).
 
 ## Coding standards & conventions
 
@@ -47,18 +78,20 @@ for type-only imports (`verbatimModuleSyntax`).
 include the `.js` extension **even in `.ts` files** (`import ResourceService from './resource.service.js';`)
 — this is how NodeNext resolves the compiled output. No CommonJS (`require` / `module.exports`).
 
-**Class-based where it pays off, functional where it's simpler.** This is the core standard:
+**Classes wired by dependency injection.** This is the core standard:
 
-- **Services & Repositories are classes.** Each concrete class `extends` a generic base
-  (`CrudService` / `CrudRepository`) to inherit CRUD for free, receives its dependencies through
-  **constructor dependency injection with a default** (real dependency in app code, mock in tests),
-  and **overrides only the methods that need custom rules** — calling `super` where appropriate.
-  For example, `ResourceService.create` enforces a unique name, then calls `super.create`. The
-  base classes are abstract-guarded via `new.target`, so instantiating them directly throws.
-- **Controllers are plain functions.** Each handler is a small, stateless async function that does
-  HTTP-only work: read the already-validated request → call a service → reply via `sendSuccess(...)`.
-  No business logic, and **no `try/catch`** — `asyncHandler` forwards rejections to the central
-  error handler.
+- **Controllers, Services & Repositories are classes** wired through the DI **container**
+  (`src/DI/`). Each receives its dependencies via constructor injection (a service gets its
+  repository, a controller gets its service) by destructuring them from the container cradle — it
+  never does `new` on another layer. Services & Repositories additionally `extend` a generic base
+  (`CrudService` / `CrudRepository`) to inherit CRUD for free and **override only the methods that
+  need custom rules** — calling `super` where appropriate. For example, `ResourceService.create`
+  enforces a unique name, then calls `super.create`. The base classes are abstract-guarded via
+  `new.target`, so instantiating them directly throws.
+- **Controller handlers are arrow-function methods.** Each handler is a small, stateless async
+  method that does HTTP-only work: read the already-validated request → call a service → reply via
+  `sendSuccess(...)`. Arrow methods keep `this` bound when passed to the router. No business logic,
+  and **no `try/catch`** — `asyncHandler` forwards rejections to the central error handler.
 - **Every bit serves one use case.** Each layer has exactly one responsibility: the **Repository**
   is the only layer that touches Mongoose, **Services** hold framework-agnostic business rules
   (never see `req`/`res`), and **Controllers** deal only with HTTP.
@@ -75,9 +108,9 @@ include the `.js` extension **even in `.ts` files** (`import ResourceService fro
 
 **Exports & barrels.** Each file uses `export default`; every folder has a barrel `index.ts` that
 re-exports its members as **named** exports (`export { default as ResourceService } from './resource.service.js';`),
-using `export type { … }` for type-only re-exports. Controllers are the exception — they are
-re-exported as a namespace (`export * as ResourceController from './resource.controller.js';`). When
-you add an entity, add it to the relevant barrels.
+using `export type { … }` for type-only re-exports — including Controllers, now that each is a class
+(`export { default as ResourceController } from './resource.controller.js';`). When you add an entity,
+add it to the relevant barrels **and** register it in the DI container (`src/DI/index.ts`).
 
 **Error handling.** Services and repositories **throw** typed errors from the `AppError` hierarchy
 (`NotFoundError`, `ConflictError`, `ValidationError`, …) rather than returning `null`. Controllers
@@ -102,16 +135,22 @@ tsconfig.json              # Strict TypeScript config (NodeNext, outDir ./dist)
 src/                        # TypeScript source (compiled to ./dist)
 ├── app.ts                 # Express app factory (no listen — testable)
 ├── index.ts               # Bootstrap: DB connect, listen, graceful shutdown
-├── Config/                # Env validation, DB, logger, rate limiter
-├── Controllers/           # Functional request handlers
+├── DI/                    # Dependency-injection wiring (Awilix) — register resources here
+├── Config/                # Env validation, DB, logger, rate limiter, OpenAPI
+├── Controllers/           # HTTP adapter classes (DI)
 ├── Middlewares/           # asyncHandler, validate, errorHandler, notFound
 ├── Models/                # Mongoose schemas + document interfaces
-├── Repository/            # Generic CrudRepository<T> (base) + concrete repositories
+├── Repository/            # Data access: data/ (Mongoose repos) + external/ (third-party, e.g. GCS)
 ├── Services/              # Business logic — generic CrudService<T> (classes)
 ├── Routes/                # /api → /v1 → feature routers
 ├── Utils/                 # AppError hierarchy, ApiResponse
 └── Validators/            # Zod request schemas (+ inferred DTO types)
 ```
+
+These top-level layer folders are **fixed** — a hard standard borrowed from the
+main `hypergro-service` codebase. Build new features by adding `entity.*` files
+**inside** the existing layers; never add a new folder directly under `src/`. A new
+third-party integration is a file under `Repository/external/`, not a new folder.
 
 ## Getting started
 
@@ -196,12 +235,12 @@ for your entity.
 From `microservice/src`, copy each template and rename it (example: creating a `User` entity):
 
 ```bash
-cp Models/resource.model.ts           Models/user.model.ts
-cp Repository/resource.repository.ts   Repository/user.repository.ts
-cp Services/resource.service.ts        Services/user.service.ts
-cp Validators/resource.validator.ts    Validators/user.validator.ts
-cp Controllers/resource.controller.ts  Controllers/user.controller.ts
-cp Routes/v1/resource.routes.ts        Routes/v1/user.routes.ts
+cp Models/resource.model.ts                Models/user.model.ts
+cp Repository/data/resource.repository.ts   Repository/data/user.repository.ts
+cp Services/resource.service.ts            Services/user.service.ts
+cp Validators/resource.validator.ts        Validators/user.validator.ts
+cp Controllers/resource.controller.ts      Controllers/user.controller.ts
+cp Routes/v1/resource.routes.ts            Routes/v1/user.routes.ts
 ```
 
 Then, in each copy, replace `Resource`/`resource` with your entity name and adjust the contents:
@@ -209,19 +248,22 @@ Then, in each copy, replace `Resource`/`resource` with your entity name and adju
 | Copy this template                   | To                                   | Then change                                                                                               |
 | ------------------------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | `Models/resource.model.ts`           | `Models/<entity>.model.ts`           | The `I<Entity>` interface, schema fields, indexes, `mongoose.model<I<Entity>>('<Entity>', …)`             |
-| `Repository/resource.repository.ts`  | `Repository/<entity>.repository.ts`  | `extends CrudRepository<I<Entity>>`, `super(<Entity>)`, add domain queries (e.g. `findByName`)            |
+| `Repository/data/resource.repository.ts` | `Repository/data/<entity>.repository.ts` | `extends CrudRepository<I<Entity>>`, `super(<Entity>)`, add domain queries (e.g. `findByName`)     |
 | `Services/resource.service.ts`       | `Services/<entity>.service.ts`       | `extends CrudService<I<Entity>, <Entity>Repository>`, inject the repo, override methods with custom rules |
 | `Validators/resource.validator.ts`   | `Validators/<entity>.validator.ts`   | Zod schemas keyed by `body` / `params` / `query`, and the inferred DTO types (`z.infer`)                  |
-| `Controllers/resource.controller.ts` | `Controllers/<entity>.controller.ts` | Instantiate the new service; rename the handlers; point the DTO casts at the new inferred types           |
-| `Routes/v1/resource.routes.ts`       | `Routes/v1/<entity>.routes.ts`       | Swap in the new validators + controller                                                                   |
+| `Controllers/resource.controller.ts` | `Controllers/<entity>.controller.ts` | Rename the class + handlers; inject the new service via the constructor; point the DTO casts at the new types |
+| `Routes/v1/resource.routes.ts`       | `Routes/v1/<entity>.routes.ts`       | Swap in the new validators; pull the controller from `container.cradle.<entity>Controller`                 |
 
 Finally, wire it up (the easy-to-forget steps):
 
-1. Add the new exports to each barrel — `Models/index.ts`, `Repository/index.ts`,
+1. **Register it in the DI container** — in `src/DI/index.ts`, add the new
+   repository/service/controller to the `Cradle` interface and the `register({ … })`
+   block (mirror the `resource*` lines).
+2. Add the new exports to each barrel — `Models/index.ts`, `Repository/index.ts`,
    `Services/index.ts`, and `Controllers/index.ts` — following the existing
-   `export { default as … }` / `export type { … }` / `export * as …Controller` patterns.
-2. Mount the router in `Routes/v1/index.ts`: `router.use('/<entities>', <entity>Routes);`.
-3. Run `npm run typecheck` — the compiler will point out anything you missed.
+   `export { default as … }` / `export type { … }` patterns.
+3. Mount the router in `Routes/v1/index.ts`: `router.use('/<entities>', <entity>Routes);`.
+4. Run `npm run typecheck` — the compiler will point out anything you missed.
 
 ## Suggested next steps
 

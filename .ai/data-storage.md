@@ -15,14 +15,16 @@ or Google Cloud Storage (files). Never the local disk.
 - The connection string comes from env via `AppConfig` — never hardcode it.
 
 ## Files & uploads → Google Cloud Storage
-- Use the helper: **`backend/src/Storage/gcs.ts`** (`uploadObject`,
+- Use the helper: **`backend/src/Repository/external/gcs.ts`** (`uploadObject`,
   `getSignedReadUrl`, `deleteObject`). It authenticates automatically on Cloud Run
-  (the runtime service account) — no key files in code.
+  (the runtime service account) — no key files in code. It lives under
+  `Repository/external/` because it's a third-party integration (see
+  `.ai/architecture.md` → "Where third-party integrations go").
 - Receive uploads with **multer `memoryStorage`** (a `Buffer` in memory), then hand
   the buffer to `uploadObject`. Example:
   ```ts
   import multer from 'multer';
-  import { uploadObject } from '../Storage/index.js';
+  import { uploadObject } from '../Repository/external/index.js';
   const upload = multer({ storage: multer.memoryStorage() });
 
   router.post('/upload', upload.single('file'), asyncHandler(async (req, res) => {

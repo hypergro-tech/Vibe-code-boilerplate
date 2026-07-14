@@ -1,8 +1,8 @@
 import { Storage } from '@google-cloud/storage';
 import type { Bucket } from '@google-cloud/storage';
 
-import AppConfig from '../Config/AppConfig.js';
-import AppError from '../Utils/errors/AppError.js';
+import AppConfig from '../../Config/AppConfig.js';
+import AppError from '../../Utils/errors/AppError.js';
 
 /**
  * Google Cloud Storage helper.
@@ -19,7 +19,7 @@ import AppError from '../Utils/errors/AppError.js';
  * Typical use with an Express route (multer memoryStorage → Buffer):
  *
  *   import multer from 'multer';
- *   import { uploadObject } from '../Storage/index.js';
+ *   import { uploadObject } from '../Repository/external/index.js';
  *   const upload = multer({ storage: multer.memoryStorage() });
  *   router.post('/upload', upload.single('file'), asyncHandler(async (req, res) => {
  *     const { url, key } = await uploadObject({

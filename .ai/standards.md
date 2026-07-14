@@ -30,7 +30,7 @@ Browser ──► Next.js (PUBLIC, port 8080, 0.0.0.0)
 ## Statelessness (required)
 The container's filesystem is wiped on every deploy and many copies may run at once.
 So:
-- **Data → MongoDB.** **Files → GCS** (`backend/src/Storage/gcs.ts`). See `.ai/data-storage.md`.
+- **Data → MongoDB.** **Files → GCS** (`backend/src/Repository/external/gcs.ts`). See `.ai/data-storage.md`.
 - No local-disk writes, no in-memory caches you expect to persist, no local sessions.
 
 ## Config & secrets

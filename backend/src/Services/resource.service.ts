@@ -1,13 +1,10 @@
 import type { HydratedDocument } from 'mongoose';
 
 import CrudService from './crud.service.js';
-import { ResourceRepository } from '../Repository/index.js';
 import { ConflictError } from '../Utils/errors/AppError.js';
+import type ResourceRepository from '../Repository/data/resource.repository.js';
+import type { Cradle } from '../DI/index.js';
 import type { IResource } from '../Models/index.js';
-
-interface ResourceServiceDeps {
-  resourceRepository?: ResourceRepository;
-}
 
 /**
  * Business logic for Resources.
@@ -17,13 +14,14 @@ interface ResourceServiceDeps {
  * have an extra rule (names must be unique). The override does its custom check
  * and then calls `super.create(...)` to reuse the base behaviour — exactly like
  * method overriding + `super` in Java.
+ *
+ * Its repository arrives via dependency injection: the DI container constructs this
+ * service and passes in `resourceRepository`. The service never does `new
+ * ResourceRepository()` itself — that keeps it decoupled and trivial to test
+ * (a test resolves the service from a test container, or `new`s it with a mock).
  */
 class ResourceService extends CrudService<IResource, ResourceRepository> {
-  /**
-   * Dependencies are injected with a sensible default, which makes the class
-   * easy to test (pass a mock repository) while staying convenient in app code.
-   */
-  constructor({ resourceRepository = new ResourceRepository() }: ResourceServiceDeps = {}) {
+  constructor({ resourceRepository }: Pick<Cradle, 'resourceRepository'>) {
     super(resourceRepository);
   }
 

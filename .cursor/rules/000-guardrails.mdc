@@ -13,8 +13,11 @@ You are building inside the Hypergro deploy boilerplate. Follow the project rule
 
 Non-negotiables: Express+TypeScript backend and Next.js+TypeScript frontend,
 MongoDB only; never write to local disk (data → MongoDB, files → GCS via
-backend/src/Storage/gcs.ts); never edit the Dockerfile, server.js, or
+backend/src/Repository/external/gcs.ts); never edit the Dockerfile, server.js, or
 frontend/next.config.mjs proxy; never hardcode secrets (read env only via
 backend/src/Config/AppConfig.ts); add API endpoints as explicit Express routes
-under /api/* following Route→Validator→Controller→Service→Repository→Model —
-never create Next.js API routes for data.
+under /api/* following Route→Validator→Controller→Service→Repository→Model, wired
+through the DI container (backend/src/DI/) — never create Next.js API routes
+for data. Keep the fixed backend layer folders: never add a new top-level folder
+under backend/src/ (new features nest inside existing layers; third-party
+integrations go under Repository/external/).

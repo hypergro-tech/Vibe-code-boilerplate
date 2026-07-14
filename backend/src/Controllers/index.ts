@@ -1,1 +1,1 @@
-export * as ResourceController from './resource.controller.js';
+export { default as ResourceController } from './resource.controller.js';
