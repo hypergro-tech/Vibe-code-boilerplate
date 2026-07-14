@@ -21,7 +21,7 @@ import { CloudBuildClient } from '@google-cloud/cloudbuild';
 import { ServicesClient } from '@google-cloud/run';
 import {
   ROOT, loadConfig, saveConfig, assertPlatformConfigured, ensureKey, gcpOptions,
-  readKeyEmail, readGithubToken, has, sh, trySh, ask, slugify, isValidName,
+  readKeyEmail, readGithubToken, has, git as gitCmd, ask, slugify, isValidName,
   log, ok, warn, info, die, banner,
 } from './_lib.mjs';
 
@@ -64,7 +64,7 @@ const sameRepo = (a, b) => Boolean(a && b) && normaliseRepo(a) === normaliseRepo
 
 /** The repo `origin` currently points at, or '' if there's no origin/git. */
 function currentOrigin() {
-  const r = trySh('git remote get-url origin');
+  const r = gitCmd(['remote', 'get-url', 'origin']);
   return r.ok ? r.out.trim() : '';
 }
 
@@ -94,20 +94,21 @@ async function pushToGithub() {
   const repoUrl = `https://github.com/${gh.org}/${name}.git`;
 
   if (!fs.existsSync(path.join(ROOT, '.git'))) {
-    sh('git init -q');
-    trySh(`git branch -M ${branch}`);
+    gitCmd(['init', '-q']);
+    gitCmd(['branch', '-M', branch]);
   }
   if (!(await createGithubRepo(gh.org, name, token))) return { skipped: 'could not create/find the GitHub repo' };
 
-  sh('git add -A');
-  trySh(`git commit -q -m "deploy: ${new Date().toISOString()}"`); // ok if nothing changed
+  gitCmd(['add', '-A']);
+  gitCmd(['commit', '-q', '-m', `deploy: ${new Date().toISOString()}`]); // ok if nothing changed
   const basic = Buffer.from(`x-access-token:${token}`).toString('base64');
   // Push straight to THIS app's own repo URL. We deliberately never touch `origin`,
-  // so deploying from a clone of the boilerplate can't hijack its remote.
-  const push = trySh(
-    `git -c http.extraHeader="Authorization: Basic ${basic}" push ${repoUrl} HEAD:${branch}`,
-    { env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }
-  );
+  // so deploying from a clone of the boilerplate can't hijack its remote. Run via an
+  // argv array (no shell) so the auth header is safe on Windows/macOS/Linux alike.
+  const push = gitCmd(['push', repoUrl, `HEAD:${branch}`], {
+    env: { GIT_TERMINAL_PROMPT: '0' },
+    extraConfig: [`http.extraHeader=Authorization: Basic ${basic}`],
+  });
   if (!push.ok) return { skipped: `push failed (${push.out.split('\n').filter(Boolean).slice(-1)[0] || 'unknown'})` };
 
   // This folder was cloned from the shared boilerplate, so `origin` still points at
@@ -116,7 +117,7 @@ async function pushToGithub() {
   // for everyone. We only ever touch `origin` when it is exactly the template.
   let repointed = false;
   if (gh.templateRepo && sameRepo(currentOrigin(), gh.templateRepo)) {
-    repointed = trySh(`git remote set-url origin ${repoUrl}`).ok;
+    repointed = gitCmd(['remote', 'set-url', 'origin', repoUrl]).ok;
   }
   return { pushed: repoUrl.replace(/\.git$/, ''), repointed };
 }

@@ -57,6 +57,21 @@ export function trySh(cmd, opts = {}) {
     return { ok: false, out: ((e.stdout || '') + (e.stderr || '')).toString().trim() };
   }
 }
+/**
+ * Run git via an argv ARRAY with no shell — so values containing spaces or base64
+ * chars (e.g. the auth header) never hit shell quoting. This is what makes git work
+ * identically on Windows (cmd/PowerShell), macOS, and Linux.
+ * `extraConfig`: array of "key=value" strings, each passed as a `-c key=value` pair.
+ */
+export function git(args, { cwd = ROOT, env, extraConfig = [] } = {}) {
+  const argv = [...extraConfig.flatMap((kv) => ['-c', kv]), ...args];
+  const r = spawnSync('git', argv, {
+    cwd,
+    encoding: 'utf8',
+    env: env ? { ...process.env, ...env } : process.env,
+  });
+  return { ok: r.status === 0, out: ((r.stdout || '') + (r.stderr || '')).trim() };
+}
 
 // ----- prompts -------------------------------------------------------------
 export async function ask(question, { silent = false } = {}) {

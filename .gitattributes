@@ -1,0 +1,6 @@
+# Force LF everywhere. These files run inside a Linux container (Dockerfile,
+# server.js) or as shell scripts; CRLF from a Windows checkout would break them.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
