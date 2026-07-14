@@ -1,12 +1,12 @@
-# Boilerplate App — build with AI, ship in one command
+# Vibe-Code Boilerplate — build with AI, ship in one command
 
-This is the **Hypergro starting point** for any app you build with AI. It already
-has a production-grade backend, the wiring for a Next.js frontend, and — most
-importantly — a way to put your app **live on the internet by copy-pasting a few
-commands**. No Git, no Docker, no servers to understand.
+This is your starting point for building an app with AI (Claude, Cursor, …). It
+already has a production-grade backend, the wiring for a Next.js website, and — the
+best part — a way to put your app **live on the internet by copy-pasting a few
+commands**. You never touch Git, Docker, or servers.
 
 ```
-boilerplate-app/
+vibe-code-boilerplate/
 ├── backend/     ← your API (Express + TypeScript). Production-ready already.
 ├── frontend/    ← your website (Next.js). Created for you on first run.
 ├── docs/        ← guides + your app's LIVE URL (saved here after you deploy)
@@ -14,64 +14,88 @@ boilerplate-app/
 └── README.md    ← you are here
 ```
 
-One app = one website address. The backend and frontend run together in one place
-and share a single URL, so there's nothing to juggle.
+One app = one web address. The backend and website run together and share a single
+URL, so there's nothing to juggle.
 
 ---
 
-## 📋 Which command, how often
+## 🔑 Before you start: get your deploy key
 
-| Command | How often | Who |
-|---|---|---|
-| `npm install` | once per project folder | everyone |
-| **`npm run setup`** | **once per computer** | **everyone — yes, you too** |
-| `npm run bootstrap` | once per project | everyone |
-| `npm run dev` | anytime, to test locally | everyone |
-| `npm run deploy` | every time you want it live | everyone |
-| `npm run rollback` | to undo a bad change | everyone |
-| `scripts/admin-setup.sh` | once, for the whole company | **only the admin** |
+You need **one file** to be able to publish your app: **`deploy-key.json`**.
 
-> **`npm run setup` runs on every new computer**, not just the admin's. It saves the
-> deploy key to your home folder (`~/.hypergro/`) so the deploy can find it. Skip it
-> and `npm run deploy` will simply tell you to run it.
+> **Where do I get it?** Ask the person who shared this project with you — your
+> **tech lead / manager, or whoever set up this codebase**. They have the key and
+> will send it to you directly (over chat/email, not committed to the project).
+
+Keep that file private and don't commit it anywhere. That's the only thing you need
+from someone else — everything below you can do yourself.
 
 ---
 
-## ✅ First time on this computer (do once)
+## ✅ One-time setup (once per computer)
 
-1. **Install the tools** (ask a teammate if unsure):
-   - [Node.js](https://nodejs.org) (v18 or newer) — that's the only required one
-   - [Git](https://git-scm.com/downloads) — optional, lets deploys save your code to GitHub
-   - **No Google Cloud CLI needed** — the deploy talks to Google for you.
+1. **Install [Node.js](https://nodejs.org)** (v18 or newer). That's the only tool
+   you must install. (Git is optional — it just lets deploys also save your code to
+   GitHub.)
 
-2. **Sign in for deploys.** Your admin gave you a file called `deploy-key.json`
-   (and maybe a GitHub token). From this folder, run:
+2. **From this project folder, run:**
    ```bash
    npm install
    npm run setup
    ```
-   Paste the path to your `deploy-key.json` when asked — it checks the key works
-   and you're ready. That's the whole cloud setup.
+   When it asks, **paste the path to your `deploy-key.json`**. It checks the key
+   works and you're done. (It may also ask for an optional GitHub token — just press
+   Enter to skip it; deploys work fine without it.)
+
+That's the entire cloud setup. No Google Cloud account or CLI needed.
 
 ---
 
-## 🛠️ Build your app
+## 🏗️ Create your app's website (once per project)
 
-1. **Create the frontend** (only needed once, right after you get the project):
-   ```bash
-   npm run bootstrap
-   ```
-   This builds a fresh Next.js website inside `frontend/` and wires it to the backend.
+```bash
+npm run bootstrap
+```
 
-2. **Now vibecode.** Open the project in your AI coding tool (Claude, Cursor, …)
-   and describe what you want. The AI reads the rules in `.ai/` and builds inside
-   the right structure automatically — clean, production-grade code.
+This builds a fresh Next.js website inside `frontend/` and connects it to the
+backend automatically.
 
-3. **Try it on your machine** (optional):
-   ```bash
-   npm run dev
-   ```
-   Open <http://localhost:3000>. Your website talks to your API automatically.
+---
+
+## 🤖 Now vibecode
+
+Open the project in your AI coding tool and describe what you want to build. **Paste
+the prompt below at the start of your session** so the AI follows the project's
+standards and produces clean, deployable code.
+
+<details open>
+<summary><b>📋 Copy-paste this into your AI's prompt (once, at the start)</b></summary>
+
+```text
+You're building inside the Vibe-Code Boilerplate. FIRST, read CLAUDE.md,
+.ai/master-prompt.md, and .ai/architecture.md, then follow those standards exactly —
+don't invent your own patterns.
+
+Key rules:
+- Build only inside the existing layers. Backend: Route → Validator → Controller →
+  Service → Repository → Model, wired through the DI container in backend/src/DI/.
+  Frontend: Next.js in frontend/.
+- Never add new top-level folders — new features nest inside the existing layers.
+  Third-party integrations go in backend/src/Repository/external/.
+- Data → MongoDB (via the Repository layer); files → GCS. Never write to local disk.
+- Validate input with Zod, respond via sendSuccess, throw AppError subclasses.
+- Read env only via backend/src/Config/AppConfig.ts — never hardcode secrets.
+- Never edit the Dockerfile, server.js, frontend/next.config.mjs, ports, or scripts/.
+- Never run git commands. To deploy, tell me to run `npm run deploy`.
+```
+
+</details>
+
+**Test it on your machine anytime** (optional):
+```bash
+npm run dev
+```
+Then open <http://localhost:3000> — your website talks to your API automatically.
 
 ---
 
@@ -81,35 +105,29 @@ and share a single URL, so there's nothing to juggle.
 npm run deploy
 ```
 
-That single command builds your app and publishes it to the internet. The first
-time takes a few minutes. When it finishes, your **live web address is printed on
-screen and saved to [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
+This one command builds your app and publishes it to the internet. The first time
+takes a few minutes; when it finishes, your **live web address is printed on screen
+and saved to [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
 
-## 🔁 Ship a new version
+- **Ship an update?** Run `npm run deploy` again — same address, updated in a couple
+  of minutes.
+- **Broke something?** Run `npm run rollback` and pick a version that worked — it
+  switches back instantly.
+- **Curious what your live app is doing?** Run `npm run logs`.
 
-Made changes and want them live? Run the **exact same command** again:
+---
 
-```bash
-npm run deploy
-```
+## 🧭 The commands, at a glance
 
-Same address, updated in a couple of minutes.
-
-## ↩️ Undo a bad change (rollback)
-
-Something broke? Go back to a version that worked:
-
-```bash
-npm run rollback
-```
-
-Pick a version from the list — your site switches back instantly.
-
-## 📜 See what your live app is doing
-
-```bash
-npm run logs
-```
+| Command | How often | What it does |
+|---|---|---|
+| `npm install` | once per project | installs the tools |
+| `npm run setup` | **once per computer** | saves your deploy key (needs `deploy-key.json`) |
+| `npm run bootstrap` | once per project | creates your app's website (frontend) |
+| `npm run dev` | anytime | run + test on your own computer |
+| `npm run deploy` | to go live / ship updates | publishes to the internet, prints your URL |
+| `npm run rollback` | to undo | switch back to a previous version |
+| `npm run logs` | to check | see what your live app is doing |
 
 ---
 
@@ -117,9 +135,9 @@ npm run logs
 
 - **You never touch Git, Docker, or servers.** The commands above handle everything.
 - **Your app's address, versions, and history** live in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
-- **Some files are off-limits** (the `Dockerfile`, `server.js`, ports, and the
-  `/api` proxy). Your AI assistant knows not to touch them — see [`.ai/deploy.md`](.ai/deploy.md).
-- **New here?** Read [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md).
+- **Some files are off-limits** (the `Dockerfile`, `server.js`, ports, and the `/api`
+  proxy). Your AI assistant already knows not to touch them — see [`.ai/deploy.md`](.ai/deploy.md).
+- **Want a longer walkthrough?** Read [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md).
 
-> Admins setting up the platform for the first time: see
-> [`scripts/admin-setup.sh`](scripts/admin-setup.sh).
+<sub>Setting up this platform for a whole team for the first time (admins only)? See
+[`PLATFORM-SETUP.md`](PLATFORM-SETUP.md).</sub>
