@@ -16,7 +16,14 @@ WORKDIR /app
 FROM base AS backend-build
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json ./
-RUN npm ci
+# Why `|| npm install`: `npm ci` is strict — it aborts if package-lock.json has
+# drifted from package.json. That happens routinely here for two reasons an end
+# user can't be expected to debug: (1) an AI adds a dependency to package.json
+# without refreshing the lock, and (2) a lock generated on macOS/Windows omits
+# Linux-only optional deps, which this Linux build then reports as "Missing: … from
+# lock file". Falling back to `npm install` keeps the fast, reproducible path when
+# the lock is good, and never blocks a deploy when it isn't.
+RUN npm ci || npm install
 COPY backend/ ./
 RUN npm run build
 
@@ -24,7 +31,7 @@ RUN npm run build
 FROM base AS backend-deps
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev || npm install --omit=dev
 
 # ---------- 3. build frontend (Next.js standalone) ----------
 FROM base AS frontend-build
@@ -34,7 +41,7 @@ WORKDIR /app/frontend
 ARG BACKEND_PORT=5000
 ENV BACKEND_PORT=${BACKEND_PORT}
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+RUN npm ci || npm install
 COPY frontend/ ./
 RUN npm run build
 

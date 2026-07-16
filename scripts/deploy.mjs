@@ -238,19 +238,82 @@ const BUILD_STATUS = {
 const statusName = (s) => (typeof s === 'number' ? BUILD_STATUS[s] || `STATUS_${s}` : String(s ?? 'UNKNOWN'));
 
 const cb = new CloudBuildClient(gcpOptions(cfg));
+const TERMINAL = new Set(['SUCCESS', 'FAILURE', 'INTERNAL_ERROR', 'TIMEOUT', 'CANCELLED', 'EXPIRED']);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Poll a build until it reaches a terminal state, tolerating transient API blips. */
+async function pollBuild(id) {
+  let blips = 0;
+  for (;;) {
+    try {
+      const [b] = await cb.getBuild({ projectId, id });
+      if (TERMINAL.has(statusName(b.status))) return b;
+      blips = 0;
+    } catch (e) {
+      // Google's API hiccups (502/UNAVAILABLE) are common on long builds; only give
+      // up after many consecutive failures.
+      if (++blips > 30) throw e;
+    }
+    await sleep(5000);
+  }
+}
+
+/** The REAL reason a build failed: the failing step + the tail of its log. */
+async function explainBuildFailure(b, id) {
+  const out = [];
+  const failing = (b?.steps || []).find((s) => statusName(s.status) === 'FAILURE');
+  if (failing) out.push(`Failed step: ${failing.id || failing.name}`);
+  if (b?.failureInfo?.detail) out.push(b.failureInfo.detail);
+  try {
+    const { Logging } = await import('@google-cloud/logging');
+    const logging = new Logging(gcpOptions(cfg));
+    const [entries] = await logging.getEntries({
+      filter: `resource.type="build" AND resource.labels.build_id="${id}"`,
+      orderBy: 'timestamp desc',
+      pageSize: 60,
+      autoPaginate: false,
+    });
+    const tail = entries
+      .map((e) => (typeof e.data === 'string' ? e.data : (e.data?.message ?? '')))
+      .filter((l) => l && l.trim())
+      .reverse()
+      .map((l) => l.replace(/\s+$/, ''))
+      .slice(-18);
+    if (tail.length) out.push('', '─── last lines of the build log ───', ...tail);
+  } catch {
+    /* logs are best-effort — never mask the real failure with a logging error */
+  }
+  return out.join('\n  ');
+}
+
 let result;
 let logUrl = '';
+let buildId = '';
 try {
   const [operation] = await cb.createBuild({ projectId, build });
+  buildId = operation.metadata?.build?.id || '';
   logUrl = operation.metadata?.build?.logUrl || '';
   if (logUrl) info(`Watch it live: ${logUrl}`);
   [result] = await operation.promise();
 } catch (e) {
-  die(`Deploy failed: ${(e?.message || String(e)).split('\n')[0]}\n  → See the Cloud Build console for details.`);
+  // Watching a long build can drop (e.g. "14 UNAVAILABLE: 502:Bad Gateway") while the
+  // build itself keeps running fine. Never report that as a failed deploy — the build
+  // was already submitted, so reconnect and poll it to its real outcome.
+  if (!buildId) die(`Could not start the build: ${(e?.message || String(e)).split('\n')[0]}`);
+  warn('Lost the connection while watching the build — reconnecting…');
+  try {
+    result = await pollBuild(buildId);
+  } catch (e2) {
+    die(
+      `Lost contact with Cloud Build: ${(e2?.message || String(e2)).split('\n')[0]}\n` +
+        `  Your build may still be running — check it here:\n  ${logUrl || buildId}`
+    );
+  }
 }
 const finalStatus = statusName(result?.status);
 if (finalStatus !== 'SUCCESS') {
-  die(`Build ended with status ${finalStatus}.${logUrl ? `\n  Logs: ${logUrl}` : ''}`);
+  const why = await explainBuildFailure(result, result?.id || buildId);
+  die(`Build ended with status ${finalStatus}.\n  ${why}${logUrl ? `\n\n  Full logs: ${logUrl}` : ''}`);
 }
 
 // ---------------------------------------------------------------------------
