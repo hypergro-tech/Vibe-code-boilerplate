@@ -112,11 +112,15 @@ async function pushToGithub() {
   if (!push.ok) return { skipped: `push failed (${push.out.split('\n').filter(Boolean).slice(-1)[0] || 'unknown'})` };
 
   // This folder was cloned from the shared boilerplate, so `origin` still points at
-  // the TEMPLATE. Now that the app has its own repo, repoint `origin` there — otherwise
-  // a plain `git push` (which AI tools run unprompted) would overwrite the template
-  // for everyone. We only ever touch `origin` when it is exactly the template.
+  // the TEMPLATE. Now that the app has its own repo, link `origin` there — otherwise
+  // a plain `git push` (which people and AI tools run unprompted) would overwrite the
+  // template for everyone. We only ever touch `origin` when it's empty or is exactly
+  // the template — never a remote the user set deliberately.
   let repointed = false;
-  if (gh.templateRepo && sameRepo(currentOrigin(), gh.templateRepo)) {
+  const origin = currentOrigin();
+  if (!origin) {
+    repointed = gitCmd(['remote', 'add', 'origin', repoUrl]).ok;
+  } else if (gh.templateRepo && sameRepo(origin, gh.templateRepo)) {
     repointed = gitCmd(['remote', 'set-url', 'origin', repoUrl]).ok;
   }
   return { pushed: repoUrl.replace(/\.git$/, ''), repointed };
@@ -129,12 +133,21 @@ if (git.pushed) {
   if (git.repointed) info(`  (this folder is now linked to your app's repo, not the shared boilerplate)`);
 } else {
   warn(`Skipped GitHub: ${git.skipped}`);
-  // No app repo yet, so `origin` may still point at the shared template.
+  // No app repo yet (no token), so `origin` may still point at the shared TEMPLATE.
+  // Detach it now — a stray `git push` (people and AI tools do this) would otherwise
+  // overwrite the boilerplate for the whole team. Deploys never need a git remote;
+  // once a token is added, the next deploy creates this app's repo and links origin.
   const tpl = cfg.github?.templateRepo;
   if (has('git') && tpl && sameRepo(currentOrigin(), tpl)) {
-    warn('This folder is still linked to the shared boilerplate template.');
-    warn("Do NOT run `git push` here — it would overwrite the template for everyone.");
-    info('  Fix it with:  git remote remove origin');
+    if (gitCmd(['remote', 'remove', 'origin']).ok) {
+      ok('Detached this folder from the shared boilerplate template.');
+      info('  (safe — a stray `git push` can no longer overwrite the boilerplate for everyone.)');
+      info('  Add a GitHub token with `npm run setup`, and the next deploy will create + link this app\'s own repo.');
+    } else {
+      warn('This folder is still linked to the shared boilerplate template.');
+      warn('  Do NOT run `git push` here — it would overwrite the template for everyone.');
+      info('  Fix it with:  git remote remove origin');
+    }
   }
 }
 

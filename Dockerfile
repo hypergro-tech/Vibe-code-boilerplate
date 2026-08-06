@@ -15,14 +15,18 @@ WORKDIR /app
 # ---------- 1. build backend (tsc -> dist) ----------
 FROM base AS backend-build
 WORKDIR /app/backend
-COPY backend/package.json backend/package-lock.json ./
-# Why `|| npm install`: `npm ci` is strict — it aborts if package-lock.json has
-# drifted from package.json. That happens routinely here for two reasons an end
-# user can't be expected to debug: (1) an AI adds a dependency to package.json
-# without refreshing the lock, and (2) a lock generated on macOS/Windows omits
-# Linux-only optional deps, which this Linux build then reports as "Missing: … from
-# lock file". Falling back to `npm install` keeps the fast, reproducible path when
-# the lock is good, and never blocks a deploy when it isn't.
+# Resilient install for a vibecoded app (both lines matter):
+#   • COPY package*.json — the glob keeps building even when package-lock.json is
+#     MISSING (an AI or user often deletes it while fixing a dependency), because
+#     package.json alone still matches. A hard `COPY … package-lock.json` would fail
+#     the whole build at the COPY step when the lock is absent.
+#   • npm ci || npm install — `npm ci` is strict: it needs a lockfile AND aborts if
+#     the lock has drifted from package.json (routine here — an AI adds a dep without
+#     refreshing the lock, or a macOS/Windows lock omits Linux-only optional deps and
+#     this Linux build reports "Missing: … from lock file"). Falling back to
+#     `npm install` keeps the fast, reproducible path when the lock is good and
+#     regenerates it when it's missing or stale — so a deploy is never blocked.
+COPY backend/package*.json ./
 RUN npm ci || npm install
 COPY backend/ ./
 RUN npm run build
@@ -30,7 +34,8 @@ RUN npm run build
 # ---------- 2. backend production dependencies only ----------
 FROM base AS backend-deps
 WORKDIR /app/backend
-COPY backend/package.json backend/package-lock.json ./
+# Glob + fallback, same rationale as the backend-build stage above.
+COPY backend/package*.json ./
 RUN npm ci --omit=dev || npm install --omit=dev
 
 # ---------- 3. build frontend (Next.js standalone) ----------
@@ -40,7 +45,8 @@ WORKDIR /app/frontend
 # BACKEND_PORT (Next resolves rewrites() at build, not runtime).
 ARG BACKEND_PORT=5000
 ENV BACKEND_PORT=${BACKEND_PORT}
-COPY frontend/package.json frontend/package-lock.json ./
+# Glob + fallback, same rationale as the backend-build stage above.
+COPY frontend/package*.json ./
 RUN npm ci || npm install
 COPY frontend/ ./
 RUN npm run build
